@@ -15,15 +15,28 @@ replacements = {
     r"\bor\b": " or ",
     r"\bnot\b": " not ",
     r"\bxor\b": " ^ ",
+    r"\bequiv\b": " == ",      # will be handled with regex later
+    r"\bimplies\b": " -> ",    # temporary marker
     r"∧": " and ",
     r"∨": " or ",
     r"¬": " not ",
     r"⊕": " ^ ",
+    r"⇔": " == ",              # will be handled with regex later
+    r"⇒": " -> ",              # temporary marker
 }
 
 def normalize_expression(expr):
+    # Step 1: basic replacements
     for pat, repl in replacements.items():
         expr = re.sub(pat, repl, expr)
+
+    # Step 2: handle equivalence (a == b)
+    # Wrap both sides in parentheses to avoid "== not ..." error
+    expr = re.sub(r"(.+?)\s*==\s*(.+)", r"(\1) == (\2)", expr)
+
+    # Step 3: handle implication (a -> b  →  (not a or b))
+    expr = re.sub(r"(.+?)\s*->\s*(.+)", r"((not (\1)) or (\2))", expr)
+
     return expr
 
 def evaluate_expression(expr, values):
@@ -43,7 +56,7 @@ def main():
     variables = set()
 
     print("Enter logical expressions (use variables like p, q, r).")
-    print("Allowed operators: and/or/not/xor or ∧/∨/¬/⊕")
+    print("Allowed operators: and/or/not/xor/equiv/implies or ∧/∨/¬/⊕/⇔/⇒")
     print("Type 'done' when finished.\n")
 
     # Input expressions
@@ -61,7 +74,7 @@ def main():
     variables = sorted(variables)
 
     # Build header
-    header = "| " + " | ".join(f"{v:^5}" for v in variables) + " | " + " | ".join(f"{e:^20}" for e in expressions) + " |"
+    header = "| " + " | ".join(f"{v:^5}" for v in variables) + " | " + " | ".join(f"{e:^25}" for e in expressions) + " |"
     print("\nTruth Table:")
     print("-" * len(header))
     print(header)
@@ -81,7 +94,7 @@ def main():
                 results.append("  F  ")
             else:
                 results.append(" ERR ")
-        row += " | " + " | ".join(f"{r:^20}" for r in results) + " |"
+        row += " | " + " | ".join(f"{r:^25}" for r in results) + " |"
         print(row)
 
     print("-" * len(header))
