@@ -3,26 +3,22 @@ import re
 # Fernandes Howard (0806022410014)
 # Michael Vergo (0806022410007)
 
-# Safe logical operators
-def logical_and(a, b): return a and b
-def logical_or(a, b): return a or b
-def logical_not(a): return not a
-def logical_xor(a, b): return (a and not b) or (not a and b)
-
 # Mapping from words/symbols to Python equivalents
 replacements = {
     r"\band\b": " and ",
     r"\bor\b": " or ",
     r"\bnot\b": " not ",
     r"\bxor\b": " ^ ",
-    r"\bequiv\b": " == ",      # will be handled with regex later
+    r"\bequiv\b": " == ",      # handled later
     r"\bimplies\b": " -> ",    # temporary marker
     r"∧": " and ",
     r"∨": " or ",
     r"¬": " not ",
     r"⊕": " ^ ",
-    r"⇔": " == ",              # will be handled with regex later
-    r"⇒": " -> ",              # temporary marker
+    r"⇔": " == ",              # handled later
+    r"↔": " == ",
+    r"⇒": " -> ",
+    r"→": " -> ",
 }
 
 def normalize_expression(expr):
@@ -31,56 +27,57 @@ def normalize_expression(expr):
         expr = re.sub(pat, repl, expr)
 
     # Step 2: handle equivalence (a == b)
-    # Wrap both sides in parentheses to avoid "== not ..." error
     expr = re.sub(r"(.+?)\s*==\s*(.+)", r"(\1) == (\2)", expr)
 
-    # Step 3: handle implication (a -> b  →  (not a or b))
+    # Step 3: handle implication (a -> b → (not a or b))
     expr = re.sub(r"(.+?)\s*->\s*(.+)", r"((not (\1)) or (\2))", expr)
 
     return expr
 
 def evaluate_expression(expr, values):
-    # Replace variables with True/False
     local_expr = expr
     for var, val in values.items():
         local_expr = re.sub(rf"\b{var}\b", str(val), local_expr)
 
     try:
-        # Use Python's eval safely
         return eval(local_expr, {"__builtins__": None}, {})
     except Exception:
         return "ERR"
 
 def main():
-    expressions = []
-    variables = set()
-
-    print("Enter logical expressions (use variables like p, q, r).")
-    print("Allowed operators: and/or/not/xor/equiv/implies or ∧/∨/¬/⊕/⇔/⇒")
+    print("Enter multiple logical expressions (p, q, r, A, B, etc.).")
+    print("Allowed: and/or/not/xor/equiv/implies or ∧/∨/¬/⊕/⇔/↔/⇒/→")
     print("Type 'done' when finished.\n")
 
-    # Input expressions
+    raw_expressions = []
+    variables = set()
+
+    # Collect all expressions until "done"
     while True:
-        expr = input(f"Expression {len(expressions)+1}: ")
-        if expr.strip().lower() == "done":
+        expr = input(f"Expression {len(raw_expressions)+1}: ").strip()
+        if expr.lower() == "done":
             break
-        expr = normalize_expression(expr)
-        expressions.append(expr)
+        if expr:
+            raw_expressions.append(expr)
+            found_vars = re.findall(r"\b[A-Za-z]\b", expr)
+            variables.update(found_vars)
 
-        # Find single-letter variables
-        found_vars = re.findall(r"\b[a-z]\b", expr)
-        variables.update(found_vars)
+    if not raw_expressions:
+        print("No expressions entered.")
+        return
 
+    # Normalize all expressions
+    expressions = [normalize_expression(expr) for expr in raw_expressions]
     variables = sorted(variables)
 
     # Build header
-    header = "| " + " | ".join(f"{v:^5}" for v in variables) + " | " + " | ".join(f"{e:^25}" for e in expressions) + " |"
+    header = "| " + " | ".join(f"{v:^5}" for v in variables) + " | " + " | ".join(f"{e:^25}" for e in raw_expressions) + " |"
     print("\nTruth Table:")
     print("-" * len(header))
     print(header)
     print("-" * len(header))
 
-    # Generate truth table rows
+    # Generate rows
     for combo in itertools.product([True, False], repeat=len(variables)):
         values = dict(zip(variables, combo))
         row = "| " + " | ".join("  T  " if values[v] else "  F  " for v in variables)
